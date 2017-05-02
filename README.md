@@ -32,11 +32,15 @@ The Google Maps Geocoding API has [usage limits]. At the time of this writing, t
 
 To batch geocode all addresses in `input_file.csv` to `output_file.csv`,
 ```bash
-$ python batch_google_geocoder.py -i input_file.csv -o output_file.csv
+$ python batch_geocoder.py -i input_file.csv -o output_file.csv
 ```
 To batch geocode addresses in rows `n` to `m`,
 ```bash
-$ python batch_google_geocoder.py -i input_file.csv -o output_file.csv --initial n --final m
+$ python batch_geocoder.py -i input_file.csv -o output_file.csv --initial n --final m
+```
+For example, to geocode addresses rows 3 to 7 in the example file provided,
+```bash
+$ python batch_geocoder.py -i addresses_for_geocode.csv -o geocoded_addresses.csv --initial 3 --final 7
 ```
 
 [Geocoding API]: https://developers.google.com/maps/documentation/geocoding/
