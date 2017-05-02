@@ -13,6 +13,7 @@ If an address is missing it will be geocoded as (0.0, 0.0) in the output file.
 
 import argparse
 import googlemaps
+import logging
 import os
 import pandas as pd
 from tqdm import tqdm
@@ -30,6 +31,14 @@ def check_auth():
     :rtype: string
     """
     api_key = os.environ["GOOGLE_API_KEY"]
+    try:
+        gmaps = googlemaps.Client(key=api_key)
+        gmaps.geocode('San Francisco, CA')
+    except ValueError:
+        if not api_key:
+            logging.error('GOOGLE_API_KEY not set.')
+        else:
+            logging.error('GOOGLE_API_KEY rejected by the server.')
     return api_key
 
 
@@ -90,6 +99,8 @@ def geocode_addresses(address_df,
 
 
 if __name__ == '__main__':
+    logging.basicConfig(format='%(levelname)s: %(message)s \n',
+                        level=logging.DEBUG)
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", help="input file")
     parser.add_argument("-o", help="output file")
