@@ -2,8 +2,10 @@
 Batch geocoding of addresses using the Google Maps Geocoding API.
 
 This script utilizes the Google's Geocoding API to allow batch geocoding. A CSV
-file is expected as input, containing an index column and an address column.
-The output is a CSV file with the additional columns latitude and longitude.
+file is expected with columns:
+| Index | Address |
+or optionally (e.g. if some addresses are already geocoded):
+| Index | Address | Latitude | Longitude |
 
 An API key is needed to use the script, and the key must be exported as an
 environment variable. See README.md for instructions for authentication.
@@ -14,6 +16,7 @@ If an address is missing it will be geocoded as (0.0, 0.0) in the output file.
 import argparse
 import googlemaps
 import logging
+import numpy as np
 import os
 import pandas as pd
 from tqdm import tqdm
@@ -42,54 +45,66 @@ def check_auth():
     return api_key
 
 
-def load_addresses(input_file):
-    """Load addresses from CSV.
+def load_data(filename):
+    """Load geolocation data from a CSV file.
 
-    :param input_file: Filename of CSV with two columns (index, address)
-    :type input_file: string
+    :param filename: Filename of CSV with columns either:
+                     | Index | Address |
+                     or optionally:
+                     | Index | Address | Latitude | Longitude |
+    :type filename: string
 
-    :return: Address dataFrame and address list
-    :rtype: dataFrame, list
+    :return: DataFrame containing addresses, possibly with some geocoded
+    :rtype: dataFrame
     """
-    address_df = pd.read_csv(input_file, usecols=[1], names=['Address'])
-    address_list = address_df['Address'].tolist()
-    return address_df, address_list
+    # Check for empty CSV
+    try:
+        cols = pd.read_csv(filename, nrows=1).columns
+    except pd.io.common.EmptyDataError as err:
+        logging.error(err)
+    # Two column CSV format
+    if len(cols) == 2:
+        names = ['Address']
+        logging.info('No Latitude/Longitude columns found. Adding them.')
+    # Four column CSV format
+    elif len(cols) == 4:
+        names = ['Address', 'Latitude', 'Longitude']
+    else:
+        logging.error('The number of CSV columns is incorrect.')
+        raise TypeError
+    address_df = pd.read_csv(filename,
+                             names=names)
+    # Convert two column format to four column format
+    if len(cols) == 2:
+        address_df = address_df.assign(Latitude=np.nan, Longitude=np.nan)
+    return address_df
 
 
-def geocode_addresses(address_df,
-                      address_list,
-                      initial_address,
-                      final_address,
-                      api_key):
-    """Geocode addresses, add latitude/longitude columns to dataFrame.
+def geocode_addresses(address_df, api_key):
+    """Geocode addresses in a dataFrame.
 
-    :param address_df: DataFrame with two columns (index, address)
+    :param address_df: DataFrame with columns either:
+                       | Index | Address |
+                       or optionally:
+                       | Index | Address | Latitude | Longitude |
     :type address_df: dataFrame
 
-    :param address_list: List of addresses to geocode
-    :type address_list: list
-
-    :param initial_address: Where to start in the address list
-    :type initial_address: int
-
-    :param final_address: Where to end in the address list
-    :type final_address: int
-
     :param api_key: Google Maps Geocoding API key
-    :type gmaps: string
+    :type api_key: string
 
-    :return: Address dataFrame with new columns (Latitude, Longitude)
-    :rtype: address dataFrame
+    :return: DataFrame updated with geocoded addresses
+    :rtype: dataFrame
     """
     gmaps = googlemaps.Client(key=api_key)
-    address_list = address_list[initial_address:final_address]
-    for address_id, address in enumerate(tqdm(address_list), initial_address):
+    address_list = address_df['Address'].tolist()
+    for address_id, address in enumerate(tqdm(address_list)):
         geocode_result = []
-        latitude, longitude = 0, 0
-        # address NaN -> don't geocode
-        if not pd.isnull(address_list[address_id]):
+        # Address NaN -> don't geocode and set to default
+        if pd.isnull(address_list[address_id]):
+            latitude, longitude = 0, 0
+        else:
             geocode_result = gmaps.geocode(address)
-        # geocode_results empty -> latitude, longitude == 0,0
+        # Geocode_results empty -> latitude, longitude == 0,0
         if geocode_result:
             latitude = geocode_result[0]['geometry']['location']['lat']
             longitude = geocode_result[0]['geometry']['location']['lng']
@@ -100,38 +115,16 @@ def geocode_addresses(address_df,
 
 if __name__ == '__main__':
     logging.basicConfig(format='%(levelname)s: %(message)s \n',
-                        level=logging.DEBUG)
+                        level=logging.WARNING)
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", help="input file")
     parser.add_argument("-o", help="output file")
-    parser.add_argument("-n",
-                        type=int,
-                        help="number of CSV rows to geocode")
-    parser.add_argument("--initial",
-                        type=int,
-                        help="CSV row to start geocoding at")
-    parser.add_argument("--final",
-                        type=int,
-                        help="CSV row to stop geocoding at")
     args = parser.parse_args()
     api_key = check_auth()
-    input_file = args.i
-    data, address_list = load_addresses(input_file)
-    if args.n:
-        final_address = args.n
-        initial_address = 0
-    if args.initial:
-        initial_address = args.initial
-    else:
-        initial_address = 0
-    if args.final:
-        final_address = args.final
-    else:
-        final_address = len(address_list)
-    address_df = geocode_addresses(data,
-                                   address_list,
-                                   initial_address,
-                                   final_address,
-                                   api_key)
+    filename = args.i
+    data = load_data(filename)
+    if args.limit:
+        address_limit = args.n
+    geolocation_df = geocode_addresses(data, api_key)
     output_file = args.o
-    address_df.to_csv(output_file)
+    geolocation_df.to_csv(output_file)

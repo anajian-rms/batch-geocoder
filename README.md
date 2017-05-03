@@ -15,7 +15,7 @@ Fortunately, there are a lot of geocoding services out there. Even better, Googl
 
  - Python 2.7 or later.
  - A Google Maps API key.
- - `pandas`, `googlemaps`, and `tqdm`
+ - `pandas`, `numpy`, `googlemaps`, and `tqdm`
 
 ## API Key
 If you do not have a Google Maps API key, follow the [instructions to get an API key].
@@ -30,17 +30,9 @@ The Google Maps Geocoding API has [usage limits]. At the time of this writing, t
 
 ## Usage
 
-To batch geocode all addresses in `input_file.csv` to `output_file.csv`,
-```bash
-$ python batch_geocoder.py -i input_file.csv -o output_file.csv
-```
-To batch geocode addresses in rows `n` to `m`,
-```bash
-$ python batch_geocoder.py -i input_file.csv -o output_file.csv --initial n --final m
-```
-For example, to geocode addresses rows 3 to 7 in the example file provided,
-```bash
-$ python batch_geocoder.py -i addresses_for_geocode.csv -o geocoded_addresses.csv --initial 3 --final 7
+To batch geocode all addresses in the example file provided:
+```shell
+$ python batch_geocoder.py -i addresses_to_geocode.csv -o geocoded_addresses.csv
 ```
 
 [Geocoding API]: https://developers.google.com/maps/documentation/geocoding/
