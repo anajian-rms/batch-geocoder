@@ -34,6 +34,11 @@ To batch geocode all addresses in the example file provided:
 ```shell
 $ python batch_geocoder.py -i addresses_to_geocode.csv -o geocoded_addresses.csv
 ```
+Optionally, a limit on the number of addresses to batch geocode can be specified:
+```shell
+$ python batch_geocoder.py -i addresses_to_geocode.csv -o geocoded_addresses.csv --limit 3
+```
+
 
 [Geocoding API]: https://developers.google.com/maps/documentation/geocoding/
 

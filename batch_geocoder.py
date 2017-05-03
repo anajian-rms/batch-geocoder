@@ -62,10 +62,12 @@ def load_data(filename):
         cols = pd.read_csv(filename, nrows=1).columns
     except pd.io.common.EmptyDataError as err:
         logging.error(err)
+
     # Two column CSV format
     if len(cols) == 2:
         names = ['Address']
         logging.info('No Latitude/Longitude columns found. Adding them.')
+
     # Four column CSV format
     elif len(cols) == 4:
         names = ['Address', 'Latitude', 'Longitude']
@@ -74,13 +76,15 @@ def load_data(filename):
         raise TypeError
     address_df = pd.read_csv(filename,
                              names=names)
+
     # Convert two column format to four column format
     if len(cols) == 2:
         address_df = address_df.assign(Latitude=np.nan, Longitude=np.nan)
+
     return address_df
 
 
-def geocode_addresses(address_df, api_key):
+def geocode_addresses(address_df, address_limit, api_key):
     """Geocode addresses in a dataFrame.
 
     :param address_df: DataFrame with columns either:
@@ -95,8 +99,15 @@ def geocode_addresses(address_df, api_key):
     :return: DataFrame updated with geocoded addresses
     :rtype: dataFrame
     """
+    # Start API client
     gmaps = googlemaps.Client(key=api_key)
+
+    # Create address list, truncate if limit argument specified
     address_list = address_df['Address'].tolist()
+    if address_limit:
+        address_list = address_list[:address_limit]
+
+    # <-- Geocoding loop -->
     for address_id, address in enumerate(tqdm(address_list)):
         geocode_result = []
         # Address NaN -> don't geocode and set to default
@@ -110,21 +121,40 @@ def geocode_addresses(address_df, api_key):
             longitude = geocode_result[0]['geometry']['location']['lng']
         address_df.at[address_id, 'Latitude'] = latitude
         address_df.at[address_id, 'Longitude'] = longitude
+
     return address_df
 
 
 if __name__ == '__main__':
+    # <-- Logger -->
     logging.basicConfig(format='%(levelname)s: %(message)s \n',
                         level=logging.WARNING)
+
+    # <-- Argument parser -->
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", help="input file")
     parser.add_argument("-o", help="output file")
+    parser.add_argument("--limit",
+                        type=int,
+                        help="Limit the number of geocodes")
     args = parser.parse_args()
-    api_key = check_auth()
-    filename = args.i
-    data = load_data(filename)
+    if args.i:
+        filename = args.i
+    else:
+        logging.error('No input CSV file specified.')
+        raise TypeError
+    if args.o:
+        output_file = args.o
+    else:
+        logging.error('No output CSV file specified.')
+        raise TypeError
     if args.limit:
-        address_limit = args.n
-    geolocation_df = geocode_addresses(data, api_key)
-    output_file = args.o
+        address_limit = args.limit
+    else:
+        address_limit = None
+
+    # <-- Main -->
+    api_key = check_auth()
+    data = load_data(filename)
+    geolocation_df = geocode_addresses(data, address_limit, api_key)
     geolocation_df.to_csv(output_file)
