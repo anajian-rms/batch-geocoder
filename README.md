@@ -33,11 +33,11 @@ The Google Maps Geocoding API has [usage limits]. At the time of this writing, t
 
 To batch geocode all addresses in the example file provided:
 ```shell
-$ python batch_geocoder.py -i addresses_to_geocode.csv -o geocoded_addresses.csv
+$ python batch_geocoder.py -i addresses_to_geocode.csv -o geocoded_addresses.csv --no-header
 ```
 Optionally, a limit on the number of addresses to batch geocode can be specified:
 ```shell
-$ python batch_geocoder.py -i addresses_to_geocode.csv -o geocoded_addresses.csv --limit 3
+$ python batch_geocoder.py -i addresses_to_geocode.csv -o geocoded_addresses.csv --no-header --limit 3
 ```
 
 
