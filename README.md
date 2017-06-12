@@ -15,7 +15,8 @@ Fortunately, there are a lot of geocoding services out there. Even better, Googl
 
  - Python 2.7 or later.
  - A Google Maps API key.
- - `pandas`, `numpy`, `googlemaps`, and `tqdm`
+ - `pandas`, `numpy`, and `googlemaps`
+ (Note: `tqdm` is included to reduce dependencies)
 
 ## API Key
 If you do not have a Google Maps API key, follow the [instructions to get an API key].
