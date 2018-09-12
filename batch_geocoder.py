@@ -47,47 +47,48 @@ def check_auth():
     return api_key
 
 
+def normalize_row(row):
+    """
+    Normalize input address data
+    :param row: single row from a address Dataframe
+    :type: List
+
+    :return: id: input unique identifier DIM_LOC_ID
+    :rtype: String
+    :return: address: full address text
+    :rtype: String
+    """
+    result = ''
+    # Street address
+    if row['Address Line 1'] != '':
+        result += str(row['Address Line 1'])
+    # City name
+    if row['CTY_NM'] != '':
+        result += ', ' + str(row['CTY_NM']) if len(result) else str(row['CTY_NM'])
+    # State
+    if row['State'] != '':
+        result += ', ' + str(row['State']) if len(result) else str(row['State'])
+    # Zipcode
+    if row['POSTAL_CD'] != '':
+        result += ' ' + str(row['POSTAL_CD']).split('-')[0] if len(result) else str(row['POSTAL_CD']).split('-')[0]
+    # Country
+    if row['ISO_CNTRY_NM'] != '':
+        result += ', ' + str(row['ISO_CNTRY_NM']) if len(result) else str(row['ISO_CNTRY_NM'])
+    return result
+
+
 def standardize_address(filename):
     """
     Standardize input addresses
     :param filename: Filename of the original CSV with columns:
-                     | DIM_LOC_ID | SRC_KY | LOC_NO | LOC_NM | TIV_RC | State | County | Address Line 1 | POSTAL_CD | CTY_NM | ISO_CNTRY_CD | ISO_CNTRY_NM |
-
+                     | DIM_LOC_ID | SRC_KY | LOC_NO | LOC_NM | TIV_RC | State | County | Address Line 1 | POSTAL_CD \n
+                     | CTY_NM | ISO_CNTRY_CD | ISO_CNTRY_NM |
     :type filename: string
 
     :return: address_dataframe containing standardized addresses, with columns
                      | Address_Text | Latitude | Longitude |
     :rtype: DataFrame
     """
-
-    def normalise_row(row):
-        """
-        Normalize input address data
-        :param row: single row from a address Dataframe
-        :type: List
-        :return: id: input unique identifier DIM_LOC_ID
-        :rtype: String
-        :return: address: full address text
-        :rtype: String
-        """
-        result = ''
-        # Street address
-        if row['Address Line 1'] != '':
-            result += str(row['Address Line 1'])
-        # City name
-        if row['CTY_NM'] != '':
-            result += ', ' + str(row['CTY_NM']) if len(result) else str(row['CTY_NM'])
-        # State
-        if row['State'] != '':
-            result += ', ' + str(row['State']) if len(result) else str(row['State'])
-        # Zipcode
-        if row['POSTAL_CD'] != '':
-            result += ' ' + str(row['POSTAL_CD']).split('-')[0] if len(result) else str(row['POSTAL_CD']).split('-')[0]
-        # Country
-        if row['ISO_CNTRY_NM'] != '':
-            result += ', ' + str(row['ISO_CNTRY_NM']) if len(result) else str(row['ISO_CNTRY_NM'])
-        return row['DIM_LOC_ID'], result
-
     # Check for empty CSV by reading in a single row
     try:
         cols = pd.read_csv(filename, nrows=1).columns
@@ -98,68 +99,21 @@ def standardize_address(filename):
     input_dataframe = pd.read_csv(filename, header='infer', dtype='str', na_values='null', keep_default_na=False)
 
     # create new dataframe
-    address_dataframe = pd.DataFrame(data=None, columns=['Index', 'Address_Text', 'Latitude', 'Longitude'])
+    address_dataframe = pd.DataFrame(data=None, columns=['Address_ID', 'Address_Text', 'Latitude', 'Longitude'])
 
     # load normalized address data
-    address_dataframe['Index'] = input_dataframe['DIM_LOC_ID']
-    address_dataframe['Address_Text'] = input_dataframe.apply(lambda x: normalise_row(x)[1], axis=1)
+    address_dataframe['Address_ID'] = input_dataframe['DIM_LOC_ID']
+    address_dataframe['Address_Text'] = input_dataframe.apply(lambda x: normalize_row(x), axis=1)
 
     return address_dataframe
 
 
-def load_data(address_dataframe, header=None):
-    """
-    Load address data from a CSV file.
-
-    :param address_dataframe: Filename of CSV with columns either:
-                     | DIM_LOC_ID | Address |
-                     or optionally:
-                     | DIM_LOC_ID | Address | Latitude | Longitude |
-    :type address_dataframe: string
-
-    :return: DataFrame containing addresses, possibly with some geocoded
-    :rtype: DataFrame
-    """
-    # Check for empty CSV by reading in a single row
-    try:
-        cols = pd.read_csv(address_dataframe, nrows=1).columns
-    except pd.io.common.EmptyDataError as err:
-        logging.error(err)
-
-    # Two column CSV format
-    if len(cols) == 2:
-        names = ['Address']
-        logging.info('No Latitude/Longitude columns found. Adding them.')
-
-    # Four column CSV format
-    elif len(cols) == 4:
-        names = ['Address', 'Latitude', 'Longitude']
-    else:
-        logging.error('The number of CSV columns is incorrect. Need 2 or 4.')
-        raise TypeError
-
-    if header:
-        address_df = pd.read_csv(address_dataframe, index_col=0)
-    else:
-        address_df = pd.read_csv(address_dataframe,
-                                 index_col=0,
-                                 header=None,
-                                 names=names)
-
-    # Convert two column format to four column format
-    if len(cols) == 2:
-        address_df = address_df.assign(Latitude=np.nan, Longitude=np.nan)
-
-    return address_df
-
-
 def geocode_addresses(address_df, address_limit, api_key):
-    """Geocode addresses in a DataFrame.
+    """
+    Geocode addresses in a DataFrame.
 
     :param address_df: DataFrame with columns either:
-                       | Index | Address |
-                       or optionally:
-                       | Index | Address | Latitude | Longitude |
+                       | Address_ID | Address_Text |
     :type address_df: DataFrame
 
     :param api_key: Google Maps Geocoding API key
@@ -172,8 +126,8 @@ def geocode_addresses(address_df, address_limit, api_key):
     gmaps = googlemaps.Client(key=api_key)
 
     # Create address list, truncate if limit argument specified
-    address_list = address_df['Address'].tolist()
-    print(address_df)
+    address_list = address_df['Address_Text'].tolist()
+    # print(address_df.loc[:, ['Address_ID', 'Address_Text']])
     if address_limit:
         address_list = address_list[:address_limit]
 
@@ -240,7 +194,6 @@ if __name__ == '__main__':
 
     # <-- Main -->
     api_key = check_auth()
-    data = standardize_address(filename=filename)
-    address_data = load_data(address_dataframe=data, header=header)
+    address_data = standardize_address(filename=filename)
     geolocation_df = geocode_addresses(address_data, address_limit, api_key)
     geolocation_df.to_csv(output_file, header=header)
