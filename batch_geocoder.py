@@ -17,7 +17,6 @@ If an address is missing it will be geocoded as (0.0, 0.0) in the output file.
 import argparse
 import googlemaps
 import logging
-import numpy as np
 import os
 import pandas as pd
 from tqdm.tqdm import tqdm
