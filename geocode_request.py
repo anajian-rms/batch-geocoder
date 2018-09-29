@@ -2,7 +2,7 @@ import json
 import simplejson
 from urllib import parse, request
 
-filepath = r"D:\Python_Projects\googleapi\config\api_keys.json"
+filepath = r"config\api_key.json"
 with open(filepath, 'r') as f:
     API_KEY = json.load(f)["API_KEY"]["Geocoding"]
 

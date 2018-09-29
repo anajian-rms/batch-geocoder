@@ -36,8 +36,9 @@ def extract_patterns(dataframe):
     :return: table of frequencies of extracted patterns
     :rtype: pandas series
     """
-    seq = dataframe["GeoLocationCode"].apply(lambda x: '-'.join([str(s) for s in x.split('-')[2:]]))
-    return pd.DataFrame(data=Address_df.groupby(seq).size())
+    glc = dataframe["GeoLocationCode"].apply(lambda x: '-'.join([str(s) for i, s in enumerate(x.split('-')) if i != 1]))
+    # grc = pd.Series(dataframe["GeoResolutionCode"])
+    return pd.DataFrame(data=Address_df.groupby(glc).size())
 
 
 if __name__ == '__main__':
